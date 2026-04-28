@@ -716,8 +716,18 @@ class FlightApp(tk.Tk):
             if len(countries) > 15:
                 self._add_result(f'   ... y {len(countries) - 15} más.', size=11)
 
-        self._regen_map(and_open=True)
-        self._set_status(f'Mostrando Componente {idx + 1} en el mapa.')
+        # Regenera el mapa en background pero NO lo abre; el usuario decide cuándo
+        self._regen_map(and_open=False)
+        self._set_status(f'Componente {idx + 1} lista. Pulsa el botón para verla en el mapa.')
+
+        # Botón explícito para abrir el mapa de esta componente
+        tk.Frame(self._result_frame, bg=C['separator'], height=1).pack(fill='x', pady=(10, 4))
+        _make_button(
+            self._result_frame,
+            '🗺  Ver esta componente en el mapa',
+            self._open_map,
+            accent=True,
+        ).pack(fill='x', pady=(0, 8))
 
     def _change_comp(self, delta):
         if self._components_cache and getattr(self, '_viewing_component_idx', None) is not None:
