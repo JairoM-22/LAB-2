@@ -43,7 +43,7 @@ def lat_lon_to_pixel(lat: float, lon: float,
 def pixel_to_lat_lon(px: float, py: float,
                      canvas_w: int, canvas_h: int,
                      margin: int = 20) -> tuple[float, float]:
-    # Inversa de lat_lon_to_pixel; útil para convertir clics del usuario a coordenadas
+    # Inversa de lat_lon_to_pixel; útil para convertir clic del usuario a coordenadas
     usable_w = canvas_w - 2 * margin
     usable_h = canvas_h - 2 * margin
 
