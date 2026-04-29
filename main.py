@@ -4,7 +4,8 @@ import threading
 import tkinter as tk
 from tkinter import messagebox
 
-# Asegurar que el directorio raíz esté en el path antes de los imports del proyecto
+# Metemos el directorio raíz en sys.path para que los imports relativos funcionen
+# sin importar desde dónde se ejecute el script
 ROOT = os.path.dirname(os.path.abspath(__file__))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
@@ -16,9 +17,11 @@ from view.app     import FlightApp
 
 
 def _load_and_launch(csv_path: str, splash: SplashScreen) -> None:
-    # Corre en hilo secundario: carga el CSV y construye el grafo
+    # Todo el trabajo pesado (leer CSV, construir grafo) ocurre aquí,
+    # en un hilo separado para que la splash screen no se congele
     try:
-        # El progreso del loader se mapea al rango [0.05, 0.55]
+        # El loader reporta progreso entre 0 y 1; lo escalamos a [0.05, 0.55]
+        # para que la barra avance de forma visual coherente con todo el proceso
         def loader_cb(msg: str, pct: float):
             splash.post_progress(msg, 0.05 + pct * 0.50)
 
@@ -32,13 +35,15 @@ def _load_and_launch(csv_path: str, splash: SplashScreen) -> None:
             airports, routes, progress_cb=graph_cb
         )
 
-        # Pre-calentar el caché de componentes para que la UI no tarde al abrirse
+        # Pre-calentamos las componentes conexas aquí mismo.
+        # Si no lo hacemos, la primera vez que el usuario las pida
+        # va a esperar varios segundos con la app ya abierta — mejor pagarlo ahora.
         splash.post_progress('Calculando componentes conexas…', 0.87)
         _ = graph.connected_components()
 
         splash.post_progress('Listo. Abriendo aplicación…', 1.0)
 
-        # after() es thread-safe; es la única forma correcta de tocar tk desde aquí
+        # after() es la única forma thread-safe de pedirle algo al hilo de tkinter
         splash.after(300, lambda: _open_app(splash, graph))
 
     except FileNotFoundError as exc:
@@ -51,20 +56,21 @@ def _load_and_launch(csv_path: str, splash: SplashScreen) -> None:
 
 
 def _open_app(splash: SplashScreen, graph: FlightGraph) -> None:
-    # Destruye el splash y arranca la ventana principal (siempre en hilo principal)
+    # Cerramos el splash antes de abrir la app principal
+    # para que no queden dos ventanas abiertas al mismo tiempo
     splash.close()
     app = FlightApp(graph)
     app.mainloop()
 
 
 def _show_error(splash: SplashScreen, msg: str) -> None:
-    # Muestra el error al usuario antes de cerrar el splash
     messagebox.showerror('Error al cargar datos', msg)
     splash.close()
 
 
 def main() -> None:
-    # Si no se pasa argumento, busca el CSV en el mismo directorio del script
+    # Si alguien pasa la ruta del CSV como argumento lo usamos;
+    # si no, asumimos que está junto al script con el nombre por defecto
     if len(sys.argv) > 1:
         csv_path = sys.argv[1]
     else:
@@ -73,7 +79,8 @@ def main() -> None:
     splash = SplashScreen()
     splash.post_progress('Iniciando…', 0.03)
 
-    # El hilo se marca como daemon para que no bloquee el cierre de la app
+    # El hilo daemon muere automáticamente cuando el usuario cierra la ventana,
+    # así no dejamos procesos huérfanos corriendo en el fondo
     t = threading.Thread(
         target=_load_and_launch,
         args=(csv_path, splash),
@@ -86,4 +93,3 @@ def main() -> None:
 
 if __name__ == '__main__':
     main()
-
